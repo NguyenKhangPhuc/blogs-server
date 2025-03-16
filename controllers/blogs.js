@@ -28,32 +28,40 @@ blogsRouter.post('/', middleware.tokenExtractor, middleware.userExtractor, async
     console.log(blog)
     const returnBlog = await blog.save()
     if (returnBlog) {
+        const populatedBlog = await returnBlog.populate('user')
         user.blogs = user.blogs.concat(returnBlog._id)
         await user.save()
-        res.status(201).json(returnBlog)
+        res.status(201).json(populatedBlog)
     } else {
         res.status(404).end()
     }
 })
 
 blogsRouter.delete('/:id', middleware.tokenExtractor, middleware.userExtractor, async (req, res) => {
-    const user = request.user
+    const user = req.user
     const blog = await Blog.findById(req.params.id)
-    console.log(blog.user, "and", user._id)
-    if (blog.user == user._id) {
+    console.log(blog.user.toString(), "and", user._id.toString())
+    if (blog.user.toString() === user._id.toString()) {
         await Blog.findByIdAndDelete(req.params.id)
+    } else {
+        return res.status(401).json({ error: 'You are not the one who created the blog' })
     }
     res.status(204).end()
 })
 
-blogsRouter.put('/:id', async (req, res) => {
+blogsRouter.put('/:id', middleware.tokenExtractor, middleware.userExtractor, async (req, res) => {
     const body = req.body
-    const response = await Blog.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true })
-    if (response) {
-        res.status(200).json(response)
-    } else {
-        res.status(404).json({ mssg: "not found" })
+    const user = req.user
+    if (body.user == user._id) {
+        const response = await Blog.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true }).populate('user')
+        if (response) {
+            console.log(response)
+            res.status(200).json(response)
+        } else {
+            res.status(404).json({ mssg: "not found" })
+        }
     }
+
 })
 
 module.exports = blogsRouter

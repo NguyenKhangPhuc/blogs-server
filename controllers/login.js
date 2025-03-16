@@ -8,16 +8,15 @@ const { SECRET_KEY } = require('../utils/config')
 loginRouter.post('/', async (req, res) => {
     const { username, password } = req.body
     const user = await User.findOne({ username: username })
-    const passwordCorrect = user === null ? false : await bcrypt.compare(password, user.passwordHash,
-        (err, result) => {
-            if (err) {
-                return err
-            }
-            return result
-        })
-    if (!user && !passwordCorrect) {
+    if (!user) {
         return res.status(401).json({
-            error: 'invalid username or password'
+            error: 'invalid username'
+        })
+    }
+    const passwordCorrect = await bcrypt.compare(password, user.passwordHash)
+    if (!passwordCorrect) {
+        return res.status(401).json({
+            error: 'invalid password'
         })
     }
     console.log(user)
