@@ -1,4 +1,5 @@
 const blogsRouter = require('express').Router()
+const blog = require('../models/blog')
 const Blog = require('../models/blog')
 const User = require('../models/user')
 const middleware = require('../utils/middleware')
@@ -43,6 +44,8 @@ blogsRouter.delete('/:id', middleware.tokenExtractor, middleware.userExtractor, 
     console.log(blog.user.toString(), "and", user._id.toString())
     if (blog.user.toString() === user._id.toString()) {
         await Blog.findByIdAndDelete(req.params.id)
+        user.blogs = user.blogs.filter(b => b != req.params.id)
+        await user.save()
     } else {
         return res.status(401).json({ error: 'You are not the one who created the blog' })
     }
@@ -52,6 +55,7 @@ blogsRouter.delete('/:id', middleware.tokenExtractor, middleware.userExtractor, 
 blogsRouter.put('/:id', middleware.tokenExtractor, middleware.userExtractor, async (req, res) => {
     const body = req.body
     const user = req.user
+    console.log(body)
     if (body.user == user._id) {
         const response = await Blog.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true }).populate('user')
         if (response) {
@@ -60,6 +64,21 @@ blogsRouter.put('/:id', middleware.tokenExtractor, middleware.userExtractor, asy
         } else {
             res.status(404).json({ mssg: "not found" })
         }
+    }
+
+})
+
+blogsRouter.post('/:id/comment', async (req, res) => {
+    const content = req.body
+    console.log(content)
+    const foundedBlog = await Blog.findById(req.params.id).populate('user')
+    if (foundedBlog) {
+        foundedBlog.comments = foundedBlog.comments.concat(content.comment)
+        console.log(foundedBlog)
+        await foundedBlog.save()
+        return res.status(200).json(foundedBlog)
+    } else {
+        res.status(404).json({ error: "Not found" })
     }
 
 })
